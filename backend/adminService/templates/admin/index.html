@@ -1,0 +1,768 @@
+{% extends 'unfold/layouts/base_simple.html' %}
+
+{% load i18n unfold %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block title %}
+    {% if subtitle %}
+        {{ subtitle }} |
+    {% endif %}
+    {{ title }} | {{ site_title|default:_('Django site admin') }}
+{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+    {% csrf_token %}
+    {% component "unfold/components/container.html" %}
+        <div class="flex flex-col gap-4">
+            {% component "unfold/components/card.html" with title="Фильтры" %}
+                <div class="flex flex-wrap gap-4">
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Категория</label>
+                        <select id="category-select" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                                onchange="updateSubcategories(this.value)">
+                            <option value="">Все категории</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Подкатегория</label>
+                        <select id="subcategory-select" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" disabled>
+                            <option value="">Все подкатегории</option>
+                            {% for subcategory in subcategories %}
+                                <option value="{{ subcategory.id }}" {% if selected_subcategory == subcategory.id %}selected{% endif %}>
+                                    {{ subcategory.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="w-full md:w-1/3 flex items-end">
+                        <button onclick="applyFilters()" class="!w-full !h-[42px] !bg-indigo-600 !text-white !px-4 !py-2 !rounded-md hover:!bg-indigo-700 focus:!outline-none focus:!ring-2 focus:!ring-indigo-500 focus:!ring-offset-2 !transition-colors !duration-200 !border-0 !shadow-sm !cursor-pointer !inline-flex !items-center !justify-center">
+                            Применить фильтры
+                        </button>
+                    </div>
+                </div>
+            {% endcomponent %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% component "unfold/components/card.html" with title="Распределение сообщений по категориям" %}
+                    <div id="categories_chart" class="h-[300px]"></div>
+                {% endcomponent %}
+
+                {% component "unfold/components/card.html" with title="Средняя оценка по категориям" %}
+                    <div id="ratings_chart" class="h-[300px]"></div>
+                {% endcomponent %}
+            </div>
+
+            {% component "unfold/components/card.html" with title="Последние сообщения" %}
+                {% component "unfold/components/table.html" with table=messages_table card_included=1 striped=1 %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const table = document.querySelector('table');
+                            if (table) {
+                                const rows = table.querySelectorAll('tr');
+                                rows.forEach(row => {
+                                    const cells = row.querySelectorAll('td');
+                                    if (cells.length > 0) {
+                                        // Добавляем класс для ячейки с запросом (6-я ячейка)
+                                        if (cells[5]) {
+                                            cells[5].classList.add('message-content');
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    </script>
+                {% endcomponent %}
+            {% endcomponent %}
+
+            {% component "unfold/components/card.html" with title="Сравнение по месяцам" %}
+                <div class="flex flex-wrap gap-4 mb-4">
+                    <div class="w-full md:w-1/2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Первый месяц</label>
+                        <select id="month1-select" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                                onchange="updateCharts()">
+                            <option value="">Выберите месяц</option>
+                            {% for month in available_months %}
+                                <option value="{{ month|date:'Y-m' }}" {% if selected_month1 == month|date:'Y-m' %}selected{% endif %}>
+                                    {{ month|date:"F Y" }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="w-full md:w-1/2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Второй месяц</label>
+                        <select id="month2-select" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" 
+                                onchange="updateCharts()">
+                            <option value="">Выберите месяц</option>
+                            {% for month in available_months %}
+                                <option value="{{ month|date:'Y-m' }}" {% if selected_month2 == month|date:'Y-m' %}selected{% endif %}>
+                                    {{ month|date:"F Y" }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="h-[300px]">
+                        <canvas id="monthlyCountChart1"></canvas>
+                    </div>
+                    <div class="h-[300px]">
+                        <canvas id="monthlyCountChart2"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div class="h-[300px]">
+                        <canvas id="monthlyRatingChart1"></canvas>
+                    </div>
+                    <div class="h-[300px]">
+                        <canvas id="monthlyRatingChart2"></canvas>
+                    </div>
+                </div>
+            {% endcomponent %}
+
+            {% if config_stats %}
+                {% component "unfold/components/card.html" with title="Анализ конфигураций моделей" %}
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600">{{ config_stats.model_description }}</p>
+                        <p class="mt-2">
+                            <span class="font-medium">Лучшая конфигурация:</span> {{ config_stats.best_config }}
+                        </p>
+                        {% if config_stats.significantly_worse %}
+                            <p class="mt-2">
+                                <span class="font-medium">Значительно хуже:</span> 
+                                {{ config_stats.significantly_worse|join:", " }}
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="h-[400px]">
+                            {{ config_stats.bar_chart_html|safe }}
+                        </div>
+                        <div class="h-[400px]">
+                            {{ config_stats.forest_chart_html|safe }}
+                        </div>
+                    </div>
+
+                    <div class="mt-4" id="config-table-container">
+                        {{ config_stats.table_html|safe }}
+                    </div>
+                {% endcomponent %}
+            {% endif %}
+
+            {% component "unfold/components/card.html" with title="Часто задаваемые вопросы" %}
+                <div class="faq-container">
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="refresh-faq" class="btn btn-primary">
+                            Обновить FAQ
+                        </button>
+                    </div>
+                    <div id="faq-list" class="space-y-4">
+                        {% for item in faq %}
+                            <div class="faq-item p-4 bg-white rounded-lg shadow">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="text-lg font-medium text-gray-900">{{ item.question }}</h3>
+                                        <p class="mt-2 text-gray-600">{{ item.answer }}</p>
+                                    </div>
+                                    <span class="text-sm text-gray-500">Задано {{ item.count }} раз</span>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-gray-500 text-center">FAQ пока не сгенерирован</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endcomponent %}
+
+            <div class="unfold">
+                <div class="unfold__header">
+                    <h2 class="unfold__title">Finetune</h2>
+                </div>
+                <div class="unfold__content">
+                    <div class="finetune-container">
+                        <button id="start-finetune" class="btn btn-primary" {% if finetune_status.is_running %}disabled{% endif %}>
+                            <span class="button-text">Начать Finetune</span>
+                            <div class="loader" style="display: none;">
+                                <div class="loader-spinner"></div>
+                            </div>
+                        </button>
+                        <div id="finetune-progress" class="progress mt-3" style="display: none;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div id="finetune-status" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endcomponent %}
+
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const subcategoriesData = {{ subcategories_json|safe }};
+        
+        window.updateSubcategories = function(categoryId) {
+            const subcategorySelect = document.getElementById('subcategory-select');
+            subcategorySelect.innerHTML = '<option value="">Все подкатегории</option>';
+            
+            if (categoryId) {
+                const subcategories = subcategoriesData[categoryId] || [];
+                subcategories.forEach(subcategory => {
+                    const option = document.createElement('option');
+                    option.value = subcategory.id;
+                    option.textContent = subcategory.name;
+                    subcategorySelect.appendChild(option);
+                });
+                subcategorySelect.disabled = false;
+            } else {
+                subcategorySelect.disabled = true;
+            }
+        };
+        
+        window.applyFilters = function() {
+            const categoryId = document.getElementById('category-select').value;
+            const subcategoryId = document.getElementById('subcategory-select').value;
+            
+            let url = '?';
+            if (categoryId) {
+                url += 'category=' + categoryId;
+                if (subcategoryId) {
+                    url += '&subcategory=' + subcategoryId;
+                }
+            }
+            
+            window.location.href = url;
+        };
+
+        // Инициализация подкатегорий при загрузке страницы
+        const initialCategoryId = document.getElementById('category-select').value;
+        if (initialCategoryId) {
+            updateSubcategories(initialCategoryId);
+        }
+
+        // График количества сообщений
+        const categoriesData = {{ categories_chart_data|safe }};
+        const categoriesLayout = {
+            margin: { t: 10, r: 10, l: 50, b: 100 },
+            xaxis: {
+                tickangle: -45,
+                automargin: true,
+                ticktext: categoriesData.data.labels.map(label => label.short),
+                tickvals: categoriesData.data.labels.map((_, i) => i)
+            },
+            yaxis: {
+                title: 'Количество сообщений'
+            },
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            showlegend: false,
+            hovermode: 'x unified',
+            hoverlabel: {
+                bgcolor: 'white',
+                font: { size: 12 }
+            }
+        };
+
+        const categoriesTrace = {
+            x: categoriesData.data.labels.map((_, i) => i),
+            y: categoriesData.data.datasets[0].data,
+            type: 'bar',
+            hovertemplate: '%{customdata}<extra></extra>',
+            customdata: categoriesData.data.labels.map(label => label.full),
+            marker: {
+                color: 'rgba(192, 132, 252, 0.8)',
+                line: {
+                    color: 'rgb(192, 132, 252)',
+                    width: 1
+                }
+            }
+        };
+
+        const categoriesChart = Plotly.newPlot('categories_chart', [categoriesTrace], categoriesLayout);
+        document.getElementById('categories_chart').on('plotly_click', function(data) {
+            const categoryName = data.points[0].customdata;
+            const categorySelect = document.getElementById('category-select');
+            const options = Array.from(categorySelect.options);
+            const targetOption = options.find(opt => opt.text === categoryName);
+            if (targetOption) {
+                categorySelect.value = targetOption.value;
+                updateSubcategories(targetOption.value);
+                applyFilters();
+            }
+        });
+
+        // График средних оценок
+        const ratingsData = {{ ratings_chart_data|safe }};
+        const ratingsLayout = {
+            margin: { t: 10, r: 10, l: 50, b: 100 },
+            xaxis: {
+                tickangle: -45,
+                automargin: true,
+                ticktext: ratingsData.data.labels.map(label => label.short),
+                tickvals: ratingsData.data.labels.map((_, i) => i)
+            },
+            yaxis: {
+                title: 'Средняя оценка',
+                range: [0, 5]
+            },
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            showlegend: false,
+            hovermode: 'x unified',
+            hoverlabel: {
+                bgcolor: 'white',
+                font: { size: 12 }
+            }
+        };
+
+        const ratingsTrace = {
+            x: ratingsData.data.labels.map((_, i) => i),
+            y: ratingsData.data.datasets[0].data,
+            type: 'bar',
+            hovertemplate: '%{customdata}<extra></extra>',
+            customdata: ratingsData.data.labels.map(label => label.full),
+            marker: {
+                color: 'rgba(147, 197, 253, 0.8)',
+                line: {
+                    color: 'rgb(147, 197, 253)',
+                    width: 1
+                }
+            }
+        };
+
+        const ratingsChart = Plotly.newPlot('ratings_chart', [ratingsTrace], ratingsLayout);
+        document.getElementById('ratings_chart').on('plotly_click', function(data) {
+            const categoryName = data.points[0].customdata;
+            const categorySelect = document.getElementById('category-select');
+            const options = Array.from(categorySelect.options);
+            const targetOption = options.find(opt => opt.text === categoryName);
+            if (targetOption) {
+                categorySelect.value = targetOption.value;
+                updateSubcategories(targetOption.value);
+                applyFilters();
+            }
+        });
+
+        // Обработка темной темы
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === "class") {
+                    const isDarkMode = document.documentElement.classList.contains('dark');
+                    const textColor = isDarkMode ? '#fff' : '#000';
+                    const gridColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+
+                    const updateLayout = {
+                        'xaxis.color': textColor,
+                        'yaxis.color': textColor,
+                        'xaxis.gridcolor': gridColor,
+                        'yaxis.gridcolor': gridColor
+                    };
+
+                    Plotly.relayout('categories_chart', updateLayout);
+                    Plotly.relayout('ratings_chart', updateLayout);
+                }
+            });
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true
+        });
+
+        // Инициализация графиков по месяцам
+        const monthlyData1 = JSON.parse('{{ monthly_chart_data1|escapejs }}');
+        const monthlyData2 = JSON.parse('{{ monthly_chart_data2|escapejs }}');
+
+        function updateMonthlyCharts() {
+            const month1 = document.getElementById('month1-select').value;
+            const month2 = document.getElementById('month2-select').value;
+            
+            let url = window.location.pathname + '?';
+            const params = new URLSearchParams(window.location.search);
+            
+            if (params.has('category')) {
+                url += 'category=' + params.get('category');
+            }
+            if (params.has('subcategory')) {
+                url += '&subcategory=' + params.get('subcategory');
+            }
+            
+            if (month1) {
+                url += (url.includes('?') ? '&' : '?') + 'month1=' + month1;
+            }
+            if (month2) {
+                url += (url.includes('?') ? '&' : '?') + 'month2=' + month2;
+            }
+            
+            window.location.href = url;
+        }
+
+        window.updateCharts = updateMonthlyCharts;
+
+        function createMonthlyChart(ctx, data, title) {
+            return new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.data.labels.map(label => label.short),
+                    datasets: [{
+                        label: 'Количество сообщений',
+                        data: data.data.datasets[0].data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                },
+                                title: function(context) {
+                                    return data.data.labels[context[0].dataIndex].full;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createMonthlyRatingChart(ctx, data, title) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.data.labels.map(label => label.short),
+                    datasets: [{
+                        label: 'Средняя оценка',
+                        data: data.data.datasets[1].data,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                },
+                                title: function(context) {
+                                    return data.data.labels[context[0].dataIndex].full;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5
+                        }
+                    }
+                }
+            });
+        }
+
+        const monthlyCountChart1 = createMonthlyChart(
+            document.getElementById('monthlyCountChart1').getContext('2d'),
+            monthlyData1,
+            'Количество сообщений по категориям'
+        );
+
+        const monthlyCountChart2 = createMonthlyChart(
+            document.getElementById('monthlyCountChart2').getContext('2d'),
+            monthlyData2,
+            'Количество сообщений по категориям'
+        );
+
+        const monthlyRatingChart1 = createMonthlyRatingChart(
+            document.getElementById('monthlyRatingChart1').getContext('2d'),
+            monthlyData1,
+            'Средняя оценка по категориям'
+        );
+
+        const monthlyRatingChart2 = createMonthlyRatingChart(
+            document.getElementById('monthlyRatingChart2').getContext('2d'),
+            monthlyData2,
+            'Средняя оценка по категориям'
+        );
+
+        // Инициализация таблицы конфигураций
+        function initConfigTable() {
+            const tableContainer = document.getElementById('config-table-container');
+            if (tableContainer) {
+                const tableDiv = tableContainer.querySelector('.js-plotly-plot');
+                if (tableDiv) {
+                    // Принудительно обновляем размеры таблицы
+                    Plotly.Plots.resize(tableDiv);
+                    
+                    // Добавляем обработчик изменения размера окна
+                    window.addEventListener('resize', function() {
+                        Plotly.Plots.resize(tableDiv);
+                    });
+                }
+            }
+        }
+
+        // Вызываем инициализацию таблицы после небольшой задержки
+        setTimeout(initConfigTable, 100);
+
+        // Также инициализируем при загрузке всех ресурсов
+        window.addEventListener('load', initConfigTable);
+
+        function updateFinetuneStatus() {
+            fetch('/get_finetune_status/')
+                .then(response => response.json())
+                .then(data => {
+                    const progressBar = document.querySelector('#finetune-progress .progress-bar');
+                    const statusDiv = document.getElementById('finetune-status');
+                    const startButton = document.getElementById('start-finetune');
+                    
+                    if (data.status === 'running') {
+                        progressBar.style.width = `${data.progress}%`;
+                        statusDiv.textContent = `Осталось: ${data.remaining_hours.toFixed(2)} часов`;
+                        startButton.disabled = true;
+                        document.getElementById('finetune-progress').style.display = 'block';
+                    } else {
+                        progressBar.style.width = '0%';
+                        statusDiv.textContent = '';
+                        startButton.disabled = false;
+                        document.getElementById('finetune-progress').style.display = 'none';
+                    }
+                });
+        }
+
+        document.getElementById('start-finetune').addEventListener('click', function() {
+            const button = this;
+            const buttonText = button.querySelector('.button-text');
+            const loader = button.querySelector('.loader');
+            
+            // Показываем лоадер и меняем текст
+            buttonText.textContent = 'Запуск...';
+            loader.style.display = 'inline-block';
+            button.disabled = true;
+            
+            fetch('/start_finetune/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateFinetuneStatus();
+                } else {
+                    alert(data.message);
+                    // Возвращаем кнопку в исходное состояние
+                    buttonText.textContent = 'Начать Finetune';
+                    loader.style.display = 'none';
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при запуске finetune');
+                // Возвращаем кнопку в исходное состояние
+                buttonText.textContent = 'Начать Finetune';
+                loader.style.display = 'none';
+                button.disabled = false;
+            });
+        });
+
+        // Обновляем статус каждые 5 минут
+        setInterval(updateFinetuneStatus, 300000);
+        // И сразу при загрузке страницы
+        updateFinetuneStatus();
+
+        // Обработка обновления FAQ
+        document.getElementById('refresh-faq').addEventListener('click', function() {
+            fetch('/get_faq/')
+                .then(response => response.json())
+                .then(data => {
+                    const faqList = document.getElementById('faq-list');
+                    faqList.innerHTML = '';
+                    
+                    if (data.faq.length === 0) {
+                        faqList.innerHTML = '<p class="text-gray-500 text-center">FAQ пока не сгенерирован</p>';
+                        return;
+                    }
+                    
+                    data.faq.forEach(item => {
+                        const faqItem = document.createElement('div');
+                        faqItem.className = 'faq-item p-4 bg-white rounded-lg shadow';
+                        faqItem.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900">${item.question}</h3>
+                                    <p class="mt-2 text-gray-600">${item.answer}</p>
+                                </div>
+                                <span class="text-sm text-gray-500">Задано ${item.count} раз</span>
+                            </div>
+                        `;
+                        faqList.appendChild(faqItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при обновлении FAQ');
+                });
+        });
+    });
+    </script>
+    <style>
+        .message-content {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .message-content:hover {
+            white-space: normal;
+            overflow: visible;
+            position: absolute;
+            background: white;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .finetune-container {
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        #start-finetune {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #start-finetune:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+        }
+
+        #start-finetune:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #finetune-progress {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        #finetune-progress .progress-bar {
+            background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+            transition: width 0.3s ease;
+        }
+
+        #finetune-status {
+            color: #4b5563;
+            font-size: 14px;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .loader {
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .loader-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .button-text {
+            display: inline-block;
+        }
+
+        .faq-container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .faq-item {
+            transition: all 0.2s ease;
+        }
+        
+        .faq-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        #refresh-faq {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        #refresh-faq:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+        }
+    </style>
+{% endblock %}

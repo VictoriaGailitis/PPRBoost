@@ -1,0 +1,14 @@
+python-dotenv==1.0.1
+dj-static==0.0.6
+Django==4.2.10
+django-unfold==0.54.0
+django-cors-headers==4.4.0
+psycopg2-binary==2.9.9
+bw2io[multifunctional]==0.9.8
+whitenoise==6.6.0
+static3==0.7.0
+gunicorn==23.0.0
+Faker==22.7.0
+plotly==6.0.1
+pymc==5.22.0
+pandas==2.2.3

@@ -1,0 +1,4 @@
+frontend     3000
+backend      8000
+admin        8001
+db           5432/5433

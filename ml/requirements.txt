@@ -1,0 +1,17 @@
+torch
+torchaudio
+langchain
+langchain_community
+langchain_groq
+unstructured[all-docs]
+transformers
+vllm
+faiss
+pymc
+numpy
+pandas
+plotly
+python-pptx
+# trl
+# unsloth
+# flash-attn

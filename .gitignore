@@ -1,0 +1,8 @@
+certs
+.env
+.idea/
+.idea/inspectionProfiles
+.venv/
+venv/
+env/
+letsencrypt

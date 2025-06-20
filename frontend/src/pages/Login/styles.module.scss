@@ -1,0 +1,48 @@
+.contCont {
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	@media (max-width: 840px) {
+		padding: 20px;
+	}
+}
+.container {
+	width: 400px;
+	gap: 20px;
+	display: flex;
+	flex-direction: column;
+}
+.icon {
+	width: 150px;
+	height: 150px;
+	align-self: center;
+	background-color: gray;
+}
+.title {
+	font-weight: 500;
+	font-size: 30px;
+	line-height: 40px;
+	align-self: center;
+}
+.contField {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.subTitle {
+	font-weight: 500;
+	font-size: 20px;
+	line-height: 28px;
+}
+.account {
+	margin-top: -10px;
+	font-weight: 400;
+	font-size: 14px;
+	line-height: 22px;
+	> div > span {
+		cursor: pointer;
+		color: #1890ff;
+	}
+}

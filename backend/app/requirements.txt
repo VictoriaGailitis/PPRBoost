@@ -1,0 +1,25 @@
+fastapi==0.115.0
+SQLAlchemy==2.0.35
+uvicorn==0.30.6
+pydantic==2.9.2
+pydantic[email]==2.9.2
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+playhouse==0.1.0
+peewee==3.15.4
+PyJWT==2.8.0
+passlib==1.7.4
+python-multipart==0.0.9
+bcrypt==4.0.1
+langchain==0.3.0
+langchain-core==0.3.49
+langchain-community==0.3.0
+langchain-groq==0.3.2
+sentence-transformers==3.1.1
+langchain-huggingface==0.1.0
+gunicorn==23.0.0
+transformers==4.44.2
+tokenizers==0.19.1
+pypdf==5.1.0
+faiss-cpu
+torch @ https://download.pytorch.org/whl/cpu/torch-2.4.1%2Bcpu-cp312-cp312-linux_x86_64.whl
